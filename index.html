@@ -36,6 +36,38 @@
             margin-bottom: 15px;
         }
 
+        .score-area {
+            text-align: center;
+            margin-bottom: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .score-display {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #3b82f6;
+            margin-bottom: 10px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e5e7eb;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #10b981);
+            border-radius: 10px;
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+
         .problem-area {
             background: white;
             padding: 30px;
@@ -76,6 +108,17 @@
             padding: 15px 25px;
             border-radius: 25px;
             animation: pulse 1s infinite;
+        }
+
+        .clear-message {
+            background: linear-gradient(45deg, #ec4899, #7c3aed);
+            color: white;
+            font-size: 2.5rem;
+            font-weight: bold;
+            padding: 30px 40px;
+            border-radius: 30px;
+            animation: rainbow 2s infinite;
+            box-shadow: 0 15px 35px rgba(124, 58, 237, 0.3);
         }
 
         .problem-display {
@@ -302,12 +345,29 @@
             background: #d97706;
         }
 
+        .btn-restart {
+            background: #ec4899;
+            color: white;
+        }
+
+        .btn-restart:hover {
+            background: #db2777;
+        }
+
         .confetti {
             position: fixed;
             width: 16px;
             height: 16px;
             border-radius: 50%;
             animation: ping 2s infinite;
+            z-index: 1000;
+            pointer-events: none;
+        }
+
+        .star {
+            position: fixed;
+            font-size: 30px;
+            animation: star-fall 3s linear infinite;
             z-index: 1000;
             pointer-events: none;
         }
@@ -330,12 +390,36 @@
                 opacity: 0;
             }
         }
+
+        @keyframes rainbow {
+            0% { filter: hue-rotate(0deg); }
+            50% { filter: hue-rotate(180deg); }
+            100% { filter: hue-rotate(360deg); }
+        }
+
+        @keyframes star-fall {
+            0% {
+                transform: translateY(-100vh) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1 class="title">かずとしき３</h1>
+        </div>
+
+        <div class="score-area">
+            <div class="score-display" id="scoreDisplay">せいかい: 0 / 5</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
         </div>
 
         <div class="problem-area">
@@ -363,6 +447,7 @@
                 <button class="btn btn-check" onclick="checkAnswer()">✓ こたえを かくにん</button>
                 <button class="btn btn-reset" onclick="resetBlocks()">🔄 ぶろっく もどす</button>
                 <button class="btn btn-new" onclick="generateNewProblem()">✨ あたらしい もんだい</button>
+                <button class="btn btn-restart" onclick="restartGame()" style="display: none;" id="restartBtn">🌟 もういちど</button>
             </div>
         </div>
     </div>
@@ -377,6 +462,9 @@
         let draggedElement = null;
         let originalPositions = new Map();
         let dragOffset = { x: 0, y: 0 };
+        let correctCount = 0;
+        const totalProblems = 5;
+        let gameCleared = false;
 
         function setupTenUnitEvents(element) {
             element.addEventListener('click', () => removeBlock(element, 1));
@@ -456,6 +544,8 @@
         }
 
         function generateRandomProblem() {
+            if (gameCleared) return;
+            
             firstNum = Math.floor(Math.random() * 8) + 12; // 12-19
             const maxSecondNum = Math.min(9, firstNum - 10); // 答えが10以上になるよう制限
             secondNum = Math.floor(Math.random() * maxSecondNum) + 1;  // 1から制限値まで
@@ -555,6 +645,8 @@
         }
 
         function resetBlocks() {
+            if (gameCleared) return;
+            
             // 移動したブロックを削除
             document.querySelectorAll('[style*="position: fixed"]').forEach(block => {
                 if (block.classList.contains('one-block')) {
@@ -576,7 +668,15 @@
             hideMessage();
         }
 
+        function updateScore() {
+            document.getElementById('scoreDisplay').textContent = `せいかい: ${correctCount} / ${totalProblems}`;
+            const progressPercent = (correctCount / totalProblems) * 100;
+            document.getElementById('progressFill').style.width = progressPercent + '%';
+        }
+
         function checkAnswer() {
+            if (gameCleared) return;
+            
             const userAnswer = parseInt(document.getElementById('answerInput').value);
             const totalRemoved = removedBlocks + movedOnes;
             
@@ -587,15 +687,67 @@
             }
             
             if (userAnswer === correctAnswer) {
-                showSuccessMessage();
-                setTimeout(() => {
-                    hideMessage();
-                    generateNewProblem();
-                }, 2000);
+                correctCount++;
+                updateScore();
+                
+                if (correctCount >= totalProblems) {
+                    // ゲームクリア
+                    gameCleared = true;
+                    showGameClearMessage();
+                } else {
+                    showSuccessMessage();
+                    setTimeout(() => {
+                        hideMessage();
+                        generateNewProblem();
+                    }, 2000);
+                }
             } else {
                 showMessage('😔 もういちど、かんがえましょう', 'error');
                 setTimeout(hideMessage, 2000);
             }
+        }
+
+        function showGameClearMessage() {
+            showMessage('🌟 ゲームクリア！ おめでとう！ 🌟', 'clear');
+            
+            // 星降らし効果
+            for (let i = 0; i < 20; i++) {
+                setTimeout(() => {
+                    const star = document.createElement('div');
+                    star.className = 'star';
+                    star.textContent = '⭐';
+                    star.style.left = Math.random() * 100 + 'vw';
+                    star.style.animationDelay = Math.random() * 2 + 's';
+                    document.body.appendChild(star);
+                    
+                    setTimeout(() => {
+                        star.remove();
+                    }, 3000);
+                }, i * 200);
+            }
+            
+            // 虹色紙吹雪
+            for (let i = 0; i < 30; i++) {
+                setTimeout(() => {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti';
+                    confetti.style.left = Math.random() * 100 + 'vw';
+                    confetti.style.top = Math.random() * 100 + 'vh';
+                    confetti.style.backgroundColor = ['#ef4444', '#3b82f6', '#10b981', '#fbbf24', '#ec4899', '#7c3aed'][i % 6];
+                    confetti.style.animationDelay = Math.random() * 2 + 's';
+                    document.body.appendChild(confetti);
+                    
+                    setTimeout(() => {
+                        confetti.remove();
+                    }, 3000);
+                }, i * 100);
+            }
+            
+            // ボタンの表示を変更
+            document.querySelector('.btn-check').style.display = 'none';
+            document.querySelector('.btn-reset').style.display = 'none';
+            document.querySelector('.btn-new').style.display = 'none';
+            document.getElementById('restartBtn').style.display = 'inline-block';
         }
 
         function showSuccessMessage() {
@@ -619,8 +771,15 @@
 
         function showMessage(text, type) {
             const messageArea = document.getElementById('messageArea');
-            const className = type === 'success' ? 'success-message' : 'error-message';
-            messageArea.innerHTML = `<div class="message ${className}">${text}</div>`;
+            let className = 'message ';
+            if (type === 'success') {
+                className += 'success-message';
+            } else if (type === 'clear') {
+                className += 'clear-message';
+            } else {
+                className += 'error-message';
+            }
+            messageArea.innerHTML = `<div class="${className}">${text}</div>`;
         }
 
         function hideMessage() {
@@ -629,12 +788,29 @@
         }
 
         function generateNewProblem() {
+            if (gameCleared) return;
             generateRandomProblem();
             hideMessage();
         }
 
+        function restartGame() {
+            correctCount = 0;
+            gameCleared = false;
+            updateScore();
+            hideMessage();
+            
+            // ボタンの表示を元に戻す
+            document.querySelector('.btn-check').style.display = 'inline-block';
+            document.querySelector('.btn-reset').style.display = 'inline-block';
+            document.querySelector('.btn-new').style.display = 'inline-block';
+            document.getElementById('restartBtn').style.display = 'none';
+            
+            generateRandomProblem();
+        }
+
         // 初期化
         window.onload = function() {
+            updateScore();
             generateRandomProblem();
         };
     </script>
